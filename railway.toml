@@ -1,0 +1,5 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["python312", "python312Packages.pip"]
