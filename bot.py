@@ -1,6 +1,8 @@
+# imports
 import os
 import logging
 from datetime import datetime, time as dtime
+import pytz
 from telegram.ext import Application, CommandHandler, ContextTypes
 from master_scanner import MasterScanner
 
@@ -10,6 +12,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ─── IST TIMEZONE HELPERS ─────────────────────────────────────────────────────
+IST = pytz.timezone("Asia/Kolkata")
+MARKET_OPEN  = dtime(9, 15)   # 9:15 AM IST
+MARKET_CLOSE = dtime(15, 30)  # 3:30 PM IST
+
+def get_ist_time():
+    return datetime.now(IST)
+
+def is_market_open():
+    now = get_ist_time()
+    # Weekend check (Saturday=5, Sunday=6)
+    if now.weekday() >= 5:
+        return False
+    # Check if current time is within market hours
+    current_time = now.time()
+    return MARKET_OPEN <= current_time <= MARKET_CLOSE
+
+# ─── CONFIG ───────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN  = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 CHAT_ID             = os.getenv("TELEGRAM_CHAT_ID",   "YOUR_CHAT_ID_HERE")
 SCAN_INTERVAL_MIN   = 15
@@ -94,22 +114,22 @@ async def chain_cmd(update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error: {str(e)}")
 
 async def status_cmd(update, context: ContextTypes.DEFAULT_TYPE):
-    now = datetime.now()
-    open_ = dtime(9, 15) <= now.time() <= dtime(15, 30)
-    await update.message.reply_text(
+    now = get_ist_time()
+    market_status = "🟢 Open" if is_market_open() else "🔴 Closed"
+
+    message = (
         f"🤖 *Bot Status*\n\n"
-        f"Market: {'🟢 Open' if open_ else '🔴 Closed'}\n"
+        f"Market: {market_status}\n"
         f"Time (IST): `{now.strftime('%d %b %Y %H:%M:%S')}`\n"
         f"Scan every: {SCAN_INTERVAL_MIN} minutes\n"
-        f"Mode: Sector → Stock → OI Chain\n",
-        parse_mode="Markdown"
+        f"Mode: Sector → Stock → OI Chain"
     )
+    await update.message.reply_text(message, parse_mode="Markdown")
 
 async def scheduled_scan(context: ContextTypes.DEFAULT_TYPE):
-    now = datetime.now().time()
-    if not (dtime(9, 15) <= now <= dtime(15, 30)):
+    if not is_market_open():
         return
-    logger.info("Running scheduled scan...")
+    logger.info(f"Running scheduled scan at {get_ist_time().strftime('%H:%M:%S')} IST...")
     try:
         result = scanner.run_full_scan()
         if result["ce_signals"] or result["pe_signals"]:

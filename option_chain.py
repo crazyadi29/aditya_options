@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import logging
 from datetime import datetime
+import pytz
+
+IST = pytz.timezone("Asia/Kolkata")
 
 logger = logging.getLogger(__name__)
 

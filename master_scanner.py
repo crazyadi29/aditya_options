@@ -1,8 +1,11 @@
 import yfinance as yf
 import logging
 from datetime import datetime
+import pytz
 from sector_analyzer import SectorAnalyzer
 from option_chain import OptionChainAnalyzer
+
+IST = pytz.timezone("Asia/Kolkata")
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +39,7 @@ class MasterScanner:
             "pe_signals": [],
             "market_context": {},
             "sector_summary": [],
-            "scan_time": datetime.now().strftime("%d %b %Y, %H:%M"),
+            "scan_time": datetime.now(IST).strftime("%d %b %Y, %H:%M"),
         }
 
         try:

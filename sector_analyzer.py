@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import logging
 from datetime import datetime
+import pytz
+
+IST = pytz.timezone("Asia/Kolkata")
 
 logger = logging.getLogger(__name__)
 
@@ -107,21 +110,42 @@ class SectorAnalyzer:
         return result
 
     def _get_change(self, ticker_symbol: str) -> float:
-        """Get today's % change for a ticker."""
+        """Get today's % change for a ticker (IST-aware)."""
         try:
             ticker = yf.Ticker(ticker_symbol)
-            hist = ticker.history(period="2d", interval="1d")
-            if len(hist) >= 2:
-                prev_close = hist["Close"].iloc[-2]
-                curr_close = hist["Close"].iloc[-1]
-                return ((curr_close - prev_close) / prev_close) * 100
-            # Try intraday
-            hist = ticker.history(period="1d", interval="5m")
+
+            # Use intraday 5m data — most reliable for live % change
+            hist = ticker.history(period="2d", interval="5m")
             if not hist.empty:
-                info = ticker.fast_info
-                prev = getattr(info, "previous_close", None) or hist["Close"].iloc[0]
-                curr = hist["Close"].iloc[-1]
-                return ((curr - prev) / prev) * 100
+                # Convert index to IST
+                if hist.index.tzinfo is None:
+                    hist.index = hist.index.tz_localize("UTC").tz_convert(IST)
+                else:
+                    hist.index = hist.index.tz_convert(IST)
+
+                today_ist = datetime.now(IST).date()
+                today_data = hist[hist.index.date == today_ist]
+
+                if not today_data.empty:
+                    curr = float(today_data["Close"].iloc[-1])
+                    # Use previous close from fast_info
+                    info = ticker.fast_info
+                    prev = getattr(info, "previous_close", None)
+                    if prev and prev > 0:
+                        return ((curr - prev) / prev) * 100
+                    # Fallback: use yesterday's last close
+                    prev_data = hist[hist.index.date < today_ist]
+                    if not prev_data.empty:
+                        prev = float(prev_data["Close"].iloc[-1])
+                        return ((curr - prev) / prev) * 100
+
+            # Final fallback: daily data
+            hist = ticker.history(period="5d", interval="1d")
+            if len(hist) >= 2:
+                prev_close = float(hist["Close"].iloc[-2])
+                curr_close = float(hist["Close"].iloc[-1])
+                return ((curr_close - prev_close) / prev_close) * 100
+
         except Exception as e:
             logger.debug(f"Change fetch failed {ticker_symbol}: {e}")
         return 0.0
@@ -138,9 +162,21 @@ class SectorAnalyzer:
             ticker = yf.Ticker(ticker_symbol)
             hist = ticker.history(period="30d", interval="15m")
 
+            if not hist.empty:
+                # Convert index to IST
+                if hist.index.tzinfo is None:
+                    hist.index = hist.index.tz_localize("UTC").tz_convert(IST)
+                else:
+                    hist.index = hist.index.tz_convert(IST)
+
             if hist.empty or len(hist) < 25:
                 # Fallback to daily
                 hist = ticker.history(period="60d", interval="1d")
+                if not hist.empty:
+                    if hist.index.tzinfo is None:
+                        hist.index = hist.index.tz_localize("UTC").tz_convert(IST)
+                    else:
+                        hist.index = hist.index.tz_convert(IST)
                 if hist.empty or len(hist) < 25:
                     return None
 
