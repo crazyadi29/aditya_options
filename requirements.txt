@@ -1,5 +1,8 @@
-python-telegram-bot[job-queue]==21.0.1
-yfinance==0.2.36
-requests==2.31.0
-pytz==2024.1
-python-dotenv==1.0.0
+fastapi
+uvicorn[standard]
+websockets
+pytz
+requests
+yfinance
+pandas
+numpy
