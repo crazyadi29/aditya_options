@@ -233,6 +233,7 @@ def main():
         return
 
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app.job_queue.scheduler.timezone = IST
     app.add_handler(CommandHandler("start",   start))
     app.add_handler(CommandHandler("help",    help_cmd))
     app.add_handler(CommandHandler("scan",    scan_now))
