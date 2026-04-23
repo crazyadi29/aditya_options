@@ -1,8 +1,0 @@
-fastapi
-uvicorn[standard]
-websockets
-pytz
-requests
-yfinance
-pandas
-numpy
