@@ -3,3 +3,6 @@ apscheduler==3.10.4
 requests==2.31.0
 pytz==2024.1
 python-dotenv==1.0.1
+fastapi==0.111.0
+uvicorn==0.29.0
+yfinance==0.2.40
